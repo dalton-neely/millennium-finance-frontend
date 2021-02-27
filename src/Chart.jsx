@@ -1,40 +1,20 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect} from 'react';
 import ApexCharts from "apexcharts"
 import "./charts.css"
+import {calculateData} from "./clients/backend-client";
 
-export const Chart = () => {
-    const initialDataState = [{
-        index: 0,
-        openTime: 0,
-        open: "",
-        high: "",
-        low: "",
-        close: "",
-        volume: "",
-        closeTime: 0,
-        quoteAssetVolume: "",
-        numberOfTrades: 0,
-        takerBuyBaseAssetVolume: "",
-        takerBuyQuoteAssetVolume: "",
-        ignore: "",
-        ema12: 0,
-        ema26: 0,
-        macd: 0,
-        macdSignal: 0,
-    }];
+export const Chart = props => {
+    const {symbol, interval, limit} = props.match.params;
 
-    const [data, setData] = useState(initialDataState);
-
-    const formatHours = (hour) => {
-        if(hour < 10) {
+    const formatHours = hour => {
+        if (hour < 10) {
             return "0" + hour;
-        }
-        else if(hour > 12) {
+        } else if (hour > 12) {
             const newHour = hour - 12;
-            if(newHour === 0) {
+            if (newHour === 0) {
                 return "00"
             }
-            if(newHour < 10){
+            if (newHour < 10) {
                 return "0" + newHour
             }
             return newHour
@@ -43,27 +23,31 @@ export const Chart = () => {
         }
     }
 
-    const formatMinutes = (mintues) => {
-        if(mintues < 10) {
-            if(mintues === 0){
+    const formatMinutes = minutes => {
+        if (minutes < 10) {
+            if (minutes === 0) {
                 return "00"
             }
-            return "0" + mintues;
+            return "0" + minutes;
         } else {
-            return mintues
+            return minutes
         }
     }
 
     useEffect(() => {
-            fetch('http://localhost:8080/candlestick-data', {
-                method: 'get'
-            })
-                .then(response => response.json())
+            calculateData({symbol, interval, limit})
                 .then(jsonData => {
-                    setData(jsonData);
-                    const series = jsonData.map(row => [row.openTime, parseFloat(row.open.replaceAll("\"", "")), parseFloat(row.high.replaceAll("\"", "")), parseFloat(row.low.replaceAll("\"", "")), parseFloat(row.close.replaceAll("\"", ""))]);
-                    const now = new Date();
-                    var options = {
+                    const series = jsonData.map(row => {
+                        const candlestick = row.candlestick;
+                        return [
+                            candlestick.openTime,
+                            candlestick.openPrice,
+                            candlestick.highestPrice,
+                            candlestick.lowestPrice,
+                            candlestick.closePrice
+                        ]
+                    });
+                    const options = {
                         chart: {
                             type: 'candlestick',
                             width: "1000px"
@@ -82,40 +66,18 @@ export const Chart = () => {
                         }
                     }
 
-                    var chart = new ApexCharts(document.querySelector("#chart"), options);
+                    const chart = new ApexCharts(document.querySelector("#chart"), options);
 
-                    chart.render();
-                    console.log("loaded")
+                    chart.render().then(r => console.log("loaded chart:", r));
                 });
-
-            return () => {
-
-            }
-        }, []
+        }, [symbol, interval, limit]
     )
 
 
     return (
         <>
             <h1>Chart Page</h1>
-            {/*<LineChart*/}
-            {/*    width={400}*/}
-            {/*    height={400}*/}
-            {/*    data={[*/}
-            {/*        { name: 'food', uv: 400, pv: 2400 },*/}
-            {/*        { name: 'cosmetic', uv: 300, pv: 4567 },*/}
-            {/*        { name: 'storage', uv: 300, pv: 1398 },*/}
-            {/*        { name: 'digital', uv: 200, pv: 9800 },*/}
-            {/*    ]}*/}
-            {/*    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}*/}
-            {/*>*/}
-            {/*    <XAxis dataKey="name" />*/}
-            {/*    <Tooltip />*/}
-            {/*    <CartesianGrid stroke="#f5f5f5" />*/}
-            {/*    <Line type="monotone" dataKey="uv" stroke="#ff7300" yAxisId={0} />*/}
-            {/*    <Line type="monotone" dataKey="pv" stroke="#387908" yAxisId={1} />*/}
-            {/*</LineChart>*/}
-            <div id="chart" style={{margin: "0 auto", display: "block"}}>chart</div>
+            <div id="chart" style={{margin: "0 auto", display: "block"}}>Candlestick Chart</div>
         </>
     );
 }
